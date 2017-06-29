@@ -16,8 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private let alternativeMenuItemTag = 1
 
   var isReady: Bool = false
-  var handledDroppedText: Bool = false
-  var handledURLEvent: Bool = false
+  var handledOpenFile: Bool = false
 
   var pendingURL: String?
 
@@ -68,7 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
-    if !isReady {
+    if !isReady && !handledOpenFile {
       UserDefaults.standard.register(defaults: Preference.defaultPreference)
       let pc = PlayerCore.first
       let actionRawValue = UserDefaults.standard.integer(forKey: Preference.Key.actionAfterLaunch)
@@ -142,6 +141,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // When dragging multiple files to IINA icon, cocoa will simply call this method repeatedly.
     // IINA (mpv) can't handle opening multiple files correctly, so I have to guard it here.
     // It's a temperory solution, and the min time interval 0.3 might also be too arbitrary.
+    handledOpenFile = true
     let c = CFAbsoluteTimeGetCurrent()
     if let t = lastOpenFileTimestamp, c - t < 0.3 { return false }
     lastOpenFileTimestamp = c
@@ -164,14 +164,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func droppedText(_ pboard: NSPasteboard, userData:String, error: NSErrorPointer) {
     if let url = pboard.string(forType: NSStringPboardType) {
-      handledDroppedText = true
+      handledOpenFile = true
       PlayerCore.active.openURLString(url)
-    }
-  }
-
-  func checkServiceStartup() {
-    if !handledDroppedText && !handledURLEvent {
-      openFile(self)
     }
   }
   
@@ -185,7 +179,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   // MARK: - URL Scheme
 
   func handleURLEvent(event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
-    handledURLEvent = true
+    handledOpenFile = true
     guard let url = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else { return }
     if isReady {
       parsePendingURL(url)
